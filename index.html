@@ -157,20 +157,25 @@ function update() {
     else if (progress >= 0.4) currentCheckpoint = 0.4;
     else currentCheckpoint = 0;
 
-    if (currentCheckpoint !== lastCheckpoint) {
+   if (currentCheckpoint !== lastCheckpoint) {
         isTransforming = true;
         transformTimer = 45;
         lastCheckpoint = currentCheckpoint;
+        
         if (currentCheckpoint === 0.8) targetScale = 1.4;
         else if (currentCheckpoint === 0.4) targetScale = 1.2;
         else targetScale = 1.0;
         
+        // --- ĐOẠN QUAN TRỌNG CẦN CHỈNH SỬA ---
         if (targetScale > visualScale) {
-            soundScaleUp.cloneNode(true).play();
+            // Phát âm thanh phình to khi túi lớn lên
+            soundScaleUp.cloneNode(true).play().catch(e => console.log("Chờ tương tác để phát nhạc")); 
             createParticles(basket.x + 40, basket.y + 35, "#ffd700", 35, 12);
         } else {
+            // Có thể thêm âm thanh xì hơi hoặc dùng âm thanh nhẹ khi túi nhỏ lại
             createParticles(basket.x + 40, basket.y + 35, "#ff4d4d", 25, 10);
         }
+        // -------------------------------------
     }
     
     visualScale += (targetScale - visualScale) * 0.05;
