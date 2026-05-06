@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Hứng Lộc Pro - Mobile Optimized</title>
+    <title>Hứng Lộc Pro - Sound Optimized</title>
     <style>
         body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; overflow: hidden; font-family: sans-serif; touch-action: none; -webkit-user-select: none; user-select: none; }
         #gameContainer { position: relative; width: 100vw; height: 100vh; max-width: 450px; max-height: 800px; aspect-ratio: 9 / 16; margin: auto; overflow: hidden; background: linear-gradient(to bottom, #0f051e, #1a1033); }
@@ -33,8 +33,7 @@
             <button class="btn" onclick="startGame()">BẮT ĐẦU</button>
         </div>
         <div id="tutorialOverlay" class="overlay" style="display: none;">
-           
-            <p>Vuốt để di chuyển túi lộc.<br><b>Ăn Bom:</b> -1.000.000đ & Teo nhỏ.</p>
+            <p>Vuốt để di chuyển túi lộc.<br><b>Ăn Tiền/Lì xì:</b> Nghe tiếng "ting ting"!<br><b>Ăn Bom:</b> -1.000.000đ & Teo nhỏ.</p>
             <button class="btn" onclick="startGameActual()">CHƠI NGAY</button>
         </div>
         <div id="winScreen" class="overlay" style="display: none;">
@@ -53,6 +52,7 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 let bgMusic = new Audio('nhacnen.mp3'); bgMusic.loop = true; bgMusic.volume = 0.4;
 let soundBoom = new Audio('boomno.mp3');
 let soundScaleUp = new Audio('phinto.mp3');
+let soundCollect = new Audio('ando.mp3'); // Thêm âm thanh ăn tiền
 
 const moneySprite = new Image(); moneySprite.src = 'image_f35639.png'; 
 const spriteMap = { 10000: { col: 0, row: 0 }, 20000: { col: 1, row: 0 }, 50000: { col: 0, row: 1 }, 100000: { col: 1, row: 1 }, 200000: { col: 0, row: 2 }, 500000: { col: 1, row: 2 } };
@@ -166,16 +166,12 @@ function update() {
         else if (currentCheckpoint === 0.4) targetScale = 1.2;
         else targetScale = 1.0;
         
-        // --- ĐOẠN QUAN TRỌNG CẦN CHỈNH SỬA ---
         if (targetScale > visualScale) {
-            // Phát âm thanh phình to khi túi lớn lên
-            soundScaleUp.cloneNode(true).play().catch(e => console.log("Chờ tương tác để phát nhạc")); 
+            soundScaleUp.cloneNode(true).play().catch(e => console.log("Chờ tương tác")); 
             createParticles(basket.x + 40, basket.y + 35, "#ffd700", 35, 12);
         } else {
-            // Có thể thêm âm thanh xì hơi hoặc dùng âm thanh nhẹ khi túi nhỏ lại
             createParticles(basket.x + 40, basket.y + 35, "#ff4d4d", 25, 10);
         }
-        // -------------------------------------
     }
     
     visualScale += (targetScale - visualScale) * 0.05;
@@ -213,12 +209,18 @@ function update() {
                 createFloatingText(m.x + 40, m.y, "🛡️ KHIÊN CẦU VỒNG", "#00ffff");
                 createParticles(m.x+40, m.y+20, "#fff", 15);
             } else if (m.val === "GOLD") {
+                // Âm thanh khi ăn Đồng Vàng
+                soundCollect.cloneNode(true).play().catch(() => {});
                 score += 5000000; createFloatingText(m.x + 40, m.y, "+5.000.000", "#ffd700");
                 createParticles(m.x+40, m.y+20, "#ffd700", 30, 12);
             } else if (m.val === "LIXI") {
+                // Âm thanh khi ăn Lì Xì
+                soundCollect.cloneNode(true).play().catch(() => {});
                 score += 2000000; createFloatingText(m.x + 40, m.y, "+2.000.000", "#ffd700");
                 createParticles(m.x+40, m.y+20, "#ffd700", 20);
             } else {
+                // Âm thanh khi ăn Tiền Mặt
+                soundCollect.cloneNode(true).play().catch(() => {});
                 score += m.val; createFloatingText(m.x + 40, m.y, "+" + m.val.toLocaleString(), "#2ecc71");
                 createParticles(m.x+40, m.y+20, "#2ecc71", 15);
             }
@@ -326,7 +328,6 @@ function draw() {
     });
 }
 
-// FIX: MOBILE INTERACTION
 const updatePos = (clientX) => { 
     if (gameActive) { 
         const rect = canvas.getBoundingClientRect(); 
