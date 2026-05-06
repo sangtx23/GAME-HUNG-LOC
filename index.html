@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Hứng Lộc Huyền Bí - Mobile</title>
+    <title>Hứng Lộc Huyền Bí - Pro Mobile</title>
     <style>
         body { 
             margin: 0; display: flex; justify-content: center; align-items: center; 
@@ -91,20 +91,27 @@ const LOGIC_H = 750;
 
 let playerName = "", currentLevel = 1, score = 0, timeLeft = 120, gameActive = false;
 let basket = { x: 185, y: 620, width: 80, height: 70 };
-let moneyItems = [], floatingTexts = [], particles = [], magicDust = [];
+let moneyItems = [], particles = [], magicDust = [];
 let visualScale = 1, targetScale = 1, lastTargetScale = 1.0;
-let transformTimer = 0, isJittering = false, winDelay = 0;
+let winDelay = 0;
 let hasShield = false, goldCoinTimer = 0, shieldTimer = 0;
 
 // --- 2. CÔNG CỤ HỖ TRỢ ---
-function createParticles(x, y, color, count, speed = 10) {
+function createParticles(x, y, color, count, speed = 10, isFirework = false) {
     for (let i = 0; i < count; i++) {
         particles.push({
             x: x, y: y,
             vx: (Math.random() - 0.5) * speed,
-            vy: (Math.random() - 0.5) * speed - (speed/2),
-            life: 1.0, color: color, size: Math.random() * 4 + 2
+            vy: (Math.random() - 0.5) * speed - (isFirework ? speed/2 : 5),
+            life: 1.0, 
+            color: color, 
+            size: Math.random() * 4 + 2,
+            gravity: isFirework ? 0.05 : 0.1
         });
+    }
+    // Phát âm thanh nếu là pháo hoa
+    if (isFirework) {
+        soundBoom.cloneNode(true).play();
     }
 }
 
@@ -114,7 +121,12 @@ function updateHUD() {
     document.getElementById("levelVal").innerText = currentLevel;
     document.getElementById("scoreVal").innerText = score.toLocaleString() + "đ";
     document.getElementById("timerVal").innerText = timeLeft + "s";
-    if (score >= getLevelGoal(currentLevel) && gameActive) { gameActive = false; winDelay = 180; }
+    
+    // Khi đạt mục tiêu
+    if (score >= getLevelGoal(currentLevel) && gameActive) { 
+        gameActive = false; 
+        winDelay = 120; // Giảm delay một chút để cảm giác nhanh hơn
+    }
 }
 
 // --- 3. ĐIỀU KHIỂN GAME ---
@@ -144,10 +156,29 @@ function nextLevel() { currentLevel++; startGameActual(); }
 
 // --- 4. LOGIC CẬP NHẬT ---
 function update() {
+    // Cập nhật hạt bụi thần tiên (luôn chạy)
+    magicDust.forEach(p => { p.y -= p.sp; if(p.y < 0) p.y = LOGIC_H; });
+
+    // Cập nhật các hạt hiệu ứng (pháo hoa/va chạm)
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += p.gravity;
+        p.life -= 0.015;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
     if (!gameActive) {
         if (winDelay > 0) {
             winDelay--;
-            if (winDelay % 15 === 0) createParticles(Math.random()*LOGIC_W, Math.random()*LOGIC_H/2, "#ffd700", 20, 10);
+            // Bung pháo hoa đồng loạt khi thắng
+            if (winDelay % 20 === 0) {
+                const colors = ["#ffd700", "#ff4d4d", "#00ffcc", "#ff00ff"];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                createParticles(Math.random() * LOGIC_W, Math.random() * (LOGIC_H/2), randomColor, 40, 12, true);
+            }
+            
             if (winDelay === 1) {
                 document.getElementById("winMsg").innerText = `Tổng thu hoạch: ${score.toLocaleString()}đ`;
                 document.getElementById("winScreen").style.display = "flex";
@@ -156,11 +187,17 @@ function update() {
         return;
     }
 
-    particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life -= 0.02; if(p.life <= 0) particles.splice(i, 1); });
-
     // Sinh vật phẩm
-    goldCoinTimer++; if (goldCoinTimer >= 800) { moneyItems.push({ x: Math.random()*(LOGIC_W-80), y: -60, val: 5000000, sp: 5, type: "GOLD" }); goldCoinTimer = 0; }
-    shieldTimer++; if (shieldTimer >= 600) { moneyItems.push({ x: Math.random()*(LOGIC_W-80), y: -60, val: 0, sp: 4, type: "SHIELD" }); shieldTimer = 0; }
+    goldCoinTimer++; 
+    if (goldCoinTimer >= 800) { 
+        moneyItems.push({ x: Math.random()*(LOGIC_W-80), y: -60, val: 5000000, sp: 5, type: "GOLD" }); 
+        goldCoinTimer = 0; 
+    }
+    shieldTimer++; 
+    if (shieldTimer >= 600) { 
+        moneyItems.push({ x: Math.random()*(LOGIC_W-80), y: -60, val: 0, sp: 4, type: "SHIELD" }); 
+        shieldTimer = 0; 
+    }
     
     if (Math.random() < 0.05 + (currentLevel * 0.005)) {
         let v, r = Math.random();
@@ -169,38 +206,57 @@ function update() {
         moneyItems.push({ x: Math.random()*(LOGIC_W-80), y: -60, val: v, sp: 3.5 + (currentLevel * 0.2), type: "NORMAL" });
     }
 
-    // Tiến độ túi
+    // Hiệu ứng phình to túi
     let progress = score / getLevelGoal(currentLevel);
     targetScale = (progress >= 0.8) ? 1.4 : (progress >= 0.4 ? 1.2 : 1.0);
-    if (targetScale > lastTargetScale) { transformTimer = 60; soundScaleUp.play(); }
+    if (targetScale > lastTargetScale) { soundScaleUp.play(); }
     lastTargetScale = targetScale;
     visualScale += (targetScale - visualScale) * 0.05;
 
     // Va chạm
     let bW = basket.width * visualScale, bX = basket.x - (bW - basket.width)/2;
-    moneyItems.forEach((m, i) => {
+    for (let i = moneyItems.length - 1; i >= 0; i--) {
+        let m = moneyItems[i];
         m.y += m.sp;
         if (m.y + 40 > basket.y && m.x + 60 > bX && m.x < bX + bW) {
             if (m.val === "BOM") {
-                if (hasShield) { hasShield = false; createParticles(bX+bW/2, basket.y, "#0ff", 30); }
-                else { score = Math.max(0, score - 1000000); soundBoom.play(); }
-            } else if (m.type === "SHIELD") { hasShield = true; }
-            else { 
+                if (hasShield) { 
+                    hasShield = false; 
+                    createParticles(bX + bW/2, basket.y, "#0ff", 30, 8); 
+                } else { 
+                    score = Math.max(0, score - 1000000); 
+                    soundBoom.play(); 
+                }
+            } else if (m.type === "SHIELD") { 
+                hasShield = true; 
+            } else { 
                 score += (m.type === "GOLD") ? 5000000 : (m.val === "LIXI" ? 2000000 : m.val);
-                createParticles(m.x+40, m.y+20, m.type === "GOLD" ? "#ffd700" : "#0f0", 15);
+                createParticles(m.x + 40, m.y + 20, m.type === "GOLD" ? "#ffd700" : "#0f0", 15, 6);
             }
-            moneyItems.splice(i, 1); updateHUD();
-        } else if (m.y > LOGIC_H) moneyItems.splice(i, 1);
-    });
-
-    magicDust.forEach(p => { p.y -= p.sp; if(p.y < 0) p.y = LOGIC_H; });
+            moneyItems.splice(i, 1); 
+            updateHUD();
+        } else if (m.y > LOGIC_H) {
+            moneyItems.splice(i, 1);
+        }
+    }
 }
 
 // --- 5. VẼ GAME ---
 function draw() {
     ctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
-    magicDust.forEach(p => { ctx.fillStyle = "rgba(255, 215, 0, 0.4)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill(); });
-    particles.forEach(p => { ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); });
+    
+    // Vẽ bụi thần tiên
+    magicDust.forEach(p => { 
+        ctx.fillStyle = "rgba(255, 215, 0, 0.4)"; 
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill(); 
+    });
+    
+    // Vẽ các hạt pháo hoa/va chạm
+    particles.forEach(p => { 
+        ctx.globalAlpha = p.life; 
+        ctx.fillStyle = p.color; 
+        ctx.fillRect(p.x, p.y, p.size, p.size); 
+    });
     ctx.globalAlpha = 1;
 
     let s = visualScale + Math.sin(Date.now()/200)*0.02;
@@ -265,7 +321,16 @@ const updatePos = (clientX) => {
 canvas.addEventListener("mousemove", (e) => updatePos(e.clientX));
 canvas.addEventListener("touchmove", (e) => { e.preventDefault(); updatePos(e.touches[0].clientX); }, {passive: false});
 
-setInterval(() => { if(gameActive) { timeLeft--; updateHUD(); if(timeLeft<=0) { gameActive = false; document.getElementById("failScreen").style.display = "flex"; } } }, 1000);
+setInterval(() => { 
+    if(gameActive) { 
+        timeLeft--; 
+        updateHUD(); 
+        if(timeLeft<=0) { 
+            gameActive = false; 
+            document.getElementById("failScreen").style.display = "flex"; 
+        } 
+    } 
+}, 1000);
 
 function loop() { update(); draw(); requestAnimationFrame(loop); }
 loop();
