@@ -1,0 +1,23 @@
+{
+  "short_name": "Hứng Lộc",
+  "name": "Hứng Lộc Huyền Bí",
+  "description": "Trò chơi hứng lộc may mắn cho điện thoại",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5551/5551244.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5551/5551244.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "index.html",
+  "background_color": "#0f051e",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#7b68ee",
+  "orientation": "portrait"
+}
