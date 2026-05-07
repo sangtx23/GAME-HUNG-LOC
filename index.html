@@ -41,158 +41,169 @@
 </div>
 
 <script>
-// --- CẤU HÌNH TÀI NGUYÊN (Hãy đảm bảo tên file trên GitHub viết thường 100%) ---
-const ASSETS = {
-    img: 'image_f35639.png',
-    bg: 'nhacnen.mp3',
-    boom: 'boomno.mp3',
-    ando: 'ando.mp3'
-};
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxh2sFzPGUw2Ka60MGECF67Qm1B-XiWgbshRPbGLnc_yNvJ9SQt8BbZ3cKXEM6qFqA/exec";
+let audioCtx;
+let sounds = { bg: null, ando: null, boom: null };
+let imagesLoaded = false;
 
+// 1. Khởi tạo ảnh với cơ chế fallback (vẽ tạm nếu lỗi)
+const moneySprite = new Image();
+moneySprite.crossOrigin = "anonymous"; 
+moneySprite.src = 'image_f35639.png?v=' + Date.now(); // Tránh cache lỗi
+moneySprite.onload = () => { imagesLoaded = true; console.log("Images Ready"); };
+
+const spriteMap = { 10000: { col: 0, row: 0 }, 20000: { col: 1, row: 0 }, 50000: { col: 0, row: 1 }, 100000: { col: 1, row: 1 }, 200000: { col: 0, row: 2 }, 500000: { col: 1, row: 2 } };
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-canvas.width = 450; canvas.height = 750;
+const LOGIC_W = 450, LOGIC_H = 750;
 
-let gameActive = false;
-let score = 0, timeLeft = 120, currentLevel = 1;
-let basket = { x: 185, y: 600, w: 100, h: 80 };
-let items = [];
-const moneySprite = new Image();
+let playerName = "", score = 0, timeLeft = 120, currentLevel = 1, gameActive = false;
+let basket = { x: 185, y: 580, width: 90, height: 70 };
+let moneyItems = [], magicDust = [];
 
-// Đối tượng quản lý âm thanh cho Mobile
-const sounds = {};
-let audioUnlocked = false;
-
-function masterInit() {
-    // 1. Mở khóa âm thanh (Bắt buộc phải gọi trong hàm onclick trên điện thoại)
-    if (!audioUnlocked) {
-        Object.keys(ASSETS).forEach(key => {
-            if (key !== 'img') {
-                sounds[key] = new Audio(ASSETS[key]);
-                sounds[key].load();
-                // Play & Pause ngay lập tức để xin quyền
-                let p = sounds[key].play();
-                if (p) p.then(() => { sounds[key].pause(); sounds[key].currentTime = 0; }).catch(()=>{});
-            }
-        });
-        audioUnlocked = true;
-    }
-
-    // 2. Kiểm tra tên và bắt đầu
-    const name = document.getElementById("playerName").value.trim();
-    if (!name) return alert("Bạn vui lòng nhập tên nhé!");
-    
-    document.getElementById("userNameDisplay").innerText = name;
-    document.getElementById("startScreen").style.display = "none";
-    
-    // Tải ảnh trước khi bắt đầu
-    moneySprite.src = ASSETS.img;
-    moneySprite.onload = () => {
-        sounds.bg.loop = true;
-        sounds.bg.play();
-        gameActive = true;
-        loop();
-    };
+function init() {
+    loadLeaderboard();
+    magicDust = [];
+    for (let i = 0; i < 20; i++) magicDust.push({x: Math.random()*LOGIC_W, y: Math.random()*LOGIC_H, s: Math.random()*2, sp: 0.5+Math.random()});
 }
 
-function playSfx(key) {
-    if (sounds[key]) {
-        let s = sounds[key].cloneNode();
-        s.volume = 0.5;
-        s.play().catch(()=>{});
+// 2. Hệ thống âm thanh "Cứng" hơn cho Mobile
+function unlockAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        sounds.bg = new Audio('nhacnen.mp3');
+        sounds.ando = new Audio('ando.mp3');
+        sounds.boom = new Audio('boomno.mp3');
+        
+        sounds.bg.loop = true;
+        sounds.bg.volume = 0.3;
     }
+    
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    // Mẹo nhỏ: Phát câm một đoạn để trình duyệt cho phép âm thanh
+    sounds.bg.play().then(() => {
+        console.log("Audio Playing");
+    }).catch(e => {
+        console.log("Cần tương tác mạnh hơn để phát nhạc");
+    });
+}
+
+function startGame() {
+    const nameInput = document.getElementById("playerName").value.trim();
+    if (!nameInput) return alert("Vui lòng nhập tên!");
+    
+    playerName = nameInput;
+    document.getElementById("userNameDisplay").innerText = playerName;
+    
+    unlockAudio(); // Gọi ngay lập tức khi click nút
+    
+    document.getElementById("startScreen").style.display = "none";
+    gameActive = true;
+    
+    // Reset game state
+    score = 0; timeLeft = 120; moneyItems = [];
+    document.getElementById("scoreVal").innerText = "0đ";
+    
+    requestAnimationFrame(loop);
 }
 
 function update() {
     if (!gameActive) return;
 
-    // Tạo vật phẩm rơi
-    if (Math.random() < 0.04) {
-        items.push({
-            x: Math.random() * 380,
-            y: -50,
-            type: Math.random() < 0.15 ? 'BOM' : 'MONEY',
-            val: [10000, 50000, 100000][Math.floor(Math.random()*3)],
-            speed: 4 + currentLevel * 0.5
-        });
+    magicDust.forEach(p => { p.y -= p.sp; if(p.y < 0) p.y = LOGIC_H; });
+
+    if (Math.random() < 0.05) {
+        let v = [10000, 20000, 50000, 100000, 200000, 500000][Math.floor(Math.random() * 6)];
+        moneyItems.push({ x: Math.random()*(LOGIC_W-80), y: -60, val: v, sp: 3.5 + (currentLevel * 0.2) });
     }
 
-    items.forEach((m, index) => {
-        m.y += m.speed;
-        // Va chạm
-        if (m.y + 40 > basket.y && m.x + 40 > basket.x && m.x < basket.x + basket.w) {
-            if (m.type === 'BOM') {
-                score -= 500000;
-                playSfx('boom');
-            } else {
-                score += m.val;
-                playSfx('ando');
+    for (let i = moneyItems.length - 1; i >= 0; i--) {
+        let m = moneyItems[i]; 
+        m.y += m.sp;
+        
+        // Kiểm tra va chạm chính xác hơn
+        if (m.y + 35 > basket.y && m.x + 60 > basket.x && m.x < basket.x + basket.width) {
+            score += m.val;
+            if(sounds.ando) {
+                let s = sounds.ando.cloneNode();
+                s.volume = 0.5;
+                s.play().catch(()=>{});
             }
-            items.splice(index, 1);
-            updateHUD();
+            moneyItems.splice(i, 1);
+            document.getElementById("scoreVal").innerText = score.toLocaleString() + "đ";
+        } else if (m.y > LOGIC_H) {
+            moneyItems.splice(i, 1);
         }
-        if (m.y > 750) items.splice(index, 1);
-    });
-}
-
-function updateHUD() {
-    document.getElementById("scoreVal").innerText = score.toLocaleString() + "đ";
-    document.getElementById("timerVal").innerText = timeLeft + "s";
+    }
+    
+    // Check thắng màn
+    if(score >= (15000000 + (currentLevel-1)*10000000)) {
+        gameActive = false;
+        document.getElementById("winMsg").innerText = `Chúc mừng ${playerName}! Bạn thu được ${score.toLocaleString()}đ`;
+        document.getElementById("winScreen").style.display = "flex";
+    }
 }
 
 function draw() {
-    ctx.clearRect(0, 0, 450, 750);
-
-    // Vẽ túi lộc (Dùng màu nếu ảnh chưa load, dùng ảnh nếu đã load)
+    ctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
+    magicDust.forEach(p => { ctx.fillStyle = "rgba(255,215,0,0.2)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill(); });
+    
+    // Vẽ giỏ lộc
     ctx.fillStyle = "#e74c3c";
-    ctx.fillRect(basket.x, basket.y, basket.w, basket.h);
-    ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 4;
-    ctx.strokeRect(basket.x, basket.y, basket.w, basket.h);
+    ctx.beginPath();
+    ctx.roundRect(basket.x, basket.y, basket.width, basket.height, 10);
+    ctx.fill();
+    ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 3;
+    ctx.stroke();
 
-    // Vẽ vật phẩm
-    items.forEach(m => {
-        if (m.type === 'BOM') {
-            ctx.font = "40px Arial"; ctx.fillText("💣", m.x, m.y + 40);
+    // Vẽ tiền
+    moneyItems.forEach(m => {
+        const pos = spriteMap[m.val];
+        if (imagesLoaded && pos && moneySprite.complete) {
+            const sW = moneySprite.width/2, sH = moneySprite.height/3;
+            ctx.drawImage(moneySprite, pos.col*sW, pos.row*sH, sW, sH, m.x, m.y, 85, 42);
         } else {
-            // Nếu có ảnh sprite thì dùng drawImage, không thì vẽ ô vàng
-            if (moneySprite.complete && moneySprite.naturalWidth !== 0) {
-                ctx.drawImage(moneySprite, 0, 0, 100, 50, m.x, m.y, 80, 40);
-            } else {
-                ctx.fillStyle = "gold"; ctx.fillRect(m.x, m.y, 60, 30);
-                ctx.fillStyle = "black"; ctx.font = "12px Arial";
-                ctx.fillText(m.val, m.x + 5, m.y + 20);
-            }
+            ctx.fillStyle = "#2ecc71";
+            ctx.fillRect(m.x, m.y, 70, 35);
+            ctx.fillStyle = "white"; ctx.font = "bold 14px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(m.val/1000 + "k", m.x + 35, m.y + 22);
         }
     });
 }
 
-// Điều khiển di động (Sửa lỗi giật lag)
+function loop() {
+    if (!gameActive) return;
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+// Xử lý touch mượt hơn cho điện thoại
+canvas.addEventListener("touchstart", (e) => { e.preventDefault(); }, {passive: false});
 canvas.addEventListener("touchmove", (e) => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
-    const touchX = (e.touches[0].clientX - rect.left) * (450 / rect.width);
-    basket.x = touchX - basket.w / 2;
-    // Giới hạn trong màn hình
-    if (basket.x < 0) basket.x = 0;
-    if (basket.x > 450 - basket.w) basket.x = 450 - basket.w;
+    const scaleX = LOGIC_W / rect.width;
+    let touchX = (e.touches[0].clientX - rect.left) * scaleX;
+    basket.x = Math.max(0, Math.min(LOGIC_W - basket.width, touchX - basket.width/2));
 }, {passive: false});
 
-// Đếm ngược thời gian
+// Đồng hồ đếm ngược
 setInterval(() => {
-    if (gameActive) {
-        timeLeft--; updateHUD();
-        if (timeLeft <= 0) {
+    if(gameActive) {
+        timeLeft--;
+        document.getElementById("timerVal").innerText = timeLeft + "s";
+        if(timeLeft <= 0) {
             gameActive = false;
-            document.getElementById("failScreen").style.display = "flex";
+            alert("Hết thời gian! Bạn đạt được: " + score.toLocaleString() + "đ");
+            location.reload();
         }
     }
 }, 1000);
 
-function loop() {
-    update();
-    draw();
-    if (gameActive) requestAnimationFrame(loop);
-}
+init();
 </script>
 </body>
 </html>
