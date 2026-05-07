@@ -22,6 +22,67 @@
         .leaderboard { width: 90%; background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 15px; margin-top: 20px; border: 1px solid rgba(123, 104, 238, 0.3); max-height: 150px; overflow-y: auto; }
         .lb-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(123, 104, 238, 0.1); font-size: 13px; }
         .btn-util { background: none; border: none; color: #7b68ee; cursor: pointer; font-size: 12px; text-decoration: underline; margin-top: 15px; opacity: 0.7; }
+        /* Khung hộp thoại chính */
+.modal-box {
+    background: rgba(15, 5, 30, 0.9);
+    border: 2px solid #ffd700;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.2), inset 0 0 15px rgba(255, 215, 0, 0.1);
+    max-width: 85%;
+}
+
+.neon-text {
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    margin-bottom: 5px;
+}
+
+/* Group nút bấm */
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    align-items: center;
+    margin-top: 20px;
+}
+
+/* Nút Tiếp tục (Vàng Tím) */
+.btn-main {
+    background: linear-gradient(45deg, #7b68ee, #5d41a3);
+    border: 1px solid #ffd700;
+    transition: transform 0.2s;
+}
+
+/* Nút Chơi lại (Xám đen) */
+.btn-alt {
+    background: #222;
+    border: 1px solid #444;
+    color: #ccc;
+}
+
+/* Nút Home (Về màn hình chính) */
+.btn-home {
+    background: linear-gradient(to bottom, #4a0080, #2b004d);
+    border: 1px solid #7b68ee;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 12px;
+    margin-top: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 90%;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.btn:active, .btn-home:active {
+    transform: scale(0.95);
+}
     </style>
 </head>
 <body>
@@ -48,13 +109,27 @@
             <button class="btn-util" onclick="clearData()">Xóa Cache & Tải lại trang</button>
         </div>
 
-        <!-- Màn hình chào mừng người cũ -->
-        <div id="welcomeBackScreen" class="overlay" style="display: none;">
-            <h2 id="welcomeText" style="color: #ffd700;">CHÀO MỪNG QUAY LẠI!</h2>
-            <p id="resumeMsg"></p>
-            <button class="btn" onclick="resumeGame()">CHƠI TIẾP MÀN CŨ</button>
-            <button class="btn-util" style="margin-top: 15px;" onclick="backToStart()">KHÔNG, QUAY LẠI MÀN HÌNH CHÍNH</button>
+       <!-- Màn hình chào mừng người cũ -->
+<div id="welcomeBackScreen" class="overlay" style="display: none;">
+    <div class="modal-box">
+        <h2 id="welcomeText" class="neon-text">CHÀO MỪNG QUAY LẠI!</h2>
+        <p id="resumeMsg"></p>
+        
+        <div class="button-group">
+            <button class="btn btn-main" onclick="resumeGame()">
+                <span>🚀</span> TIẾP TỤC CHƠI
+            </button>
+            <button class="btn btn-alt" onclick="restartNewGame()">
+                <span>🔄</span> CHƠI LẠI MÀN 1
+            </button>
         </div>
+
+        <!-- Nút Home với biểu tượng ngôi nhà -->
+        <button class="btn-home" onclick="backToStart()" title="Về màn hình chính">
+            🏠 VỀ MÀN HÌNH CHÍNH
+        </button>
+    </div>
+</div>
 
         <div id="tutorialOverlay" class="overlay" style="display: none;">
             <h2>CÁCH CHƠI</h2>
@@ -114,15 +189,18 @@ function init() {
         document.getElementById("resumeMsg").innerText = `Lần trước bạn đã thoát ở Màn ${currentLevel}.\nBạn muốn tiếp tục chứ?`;
     }
 }
-    function backToStart() {
-    // Ẩn màn hình chào mừng người cũ
+   function backToStart() {
+    // 1. Hiệu ứng ẩn màn hình cũ
     document.getElementById("welcomeBackScreen").style.display = "none";
-    // Hiện lại màn hình nhập tên ban đầu
+    
+    // 2. Hiện màn hình bắt đầu
     document.getElementById("startScreen").style.display = "flex";
-   
-      
+    
+    // 3. Xóa dữ liệu tên cũ nếu bạn muốn họ nhập lại từ đầu
+    localStorage.removeItem('player_name');
+    playerName = "";
+    document.getElementById("playerName").value = "";
 }
-
 async function loadLeaderboard() {
     const container = document.getElementById("leaderboardContent");
     try {
