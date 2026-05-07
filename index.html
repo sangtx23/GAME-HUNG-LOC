@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Hứng Lộc Pro - Fixed 2026</title>
+    <title>Hứng Lộc Pro - Restoration Fix</title>
     <style>
         body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; overflow: hidden; font-family: sans-serif; touch-action: none; }
         #gameContainer { position: relative; width: 100vw; height: 100vh; max-width: 450px; background: #0f051e; overflow: hidden; }
@@ -14,7 +14,7 @@
         .stat-value { font-size: 11px; font-weight: bold; color: #ffd700; }
         .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; color: #fff; text-align: center; padding: 20px; }
         .btn { background: #7b68ee; border: none; padding: 15px 40px; font-size: 18px; cursor: pointer; border-radius: 30px; color: #fff; font-weight: bold; margin-top: 20px; width: 80%; }
-        input { padding: 12px; border-radius: 10px; width: 70%; font-size: 16px; margin-bottom: 10px; text-align: center; }
+        input { padding: 12px; border-radius: 10px; width: 70%; font-size: 16px; margin-bottom: 10px; text-align: center; background: #1a1033; color: #fff; border: 1px solid #7b68ee; }
     </style>
 </head>
 <body>
@@ -29,40 +29,38 @@
     <canvas id="gameCanvas"></canvas>
 
     <div id="startScreen" class="overlay">
-        <h1>🧧 HỨNG LỘC PRO 🧧</h1>
+        <h1 style="color: #ffd700">🧧 HỨNG LỘC PRO 🧧</h1>
         <input type="text" id="playerName" placeholder="Nhập tên của bạn..." maxlength="12">
         <button class="btn" onclick="startGame()">BẮT ĐẦU CHƠI</button>
-    </div>
-
-    <div id="winScreen" class="overlay" style="display:none">
-        <h2 style="color: #ffd700">XUẤT SẮC! 💰</h2>
-        <p id="winMsg"></p>
-        <button class="btn" onclick="location.reload()">CHƠI LẠI</button>
     </div>
 </div>
 
 <script>
-let audioCtx;
-let sounds = { bg: null, ando: null, boom: null };
-let imagesLoaded = false;
-
-// 1. Tải ảnh
-const moneySprite = new Image();
-moneySprite.src = 'image_f35639.png';
-moneySprite.onload = () => { imagesLoaded = true; };
-
-const spriteMap = { 10000: { col: 0, row: 0 }, 20000: { col: 1, row: 0 }, 50000: { col: 0, row: 1 }, 100000: { col: 1, row: 1 }, 200000: { col: 0, row: 2 }, 500000: { col: 1, row: 2 } };
+// --- KHỞI TẠO CẤU HÌNH ---
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const LOGIC_W = 450, LOGIC_H = 750;
 canvas.width = LOGIC_W; canvas.height = LOGIC_H;
 
-let playerName = "", score = 0, timeLeft = 120, currentLevel = 1, gameActive = false;
-let basket = { x: 175, y: 600, width: 100, height: 80 };
-let moneyItems = [], magicDust = [];
+let audioCtx;
+let sounds = { bg: null, ando: null, boom: null };
+let imagesLoaded = false;
+const moneySprite = new Image();
+moneySprite.src = 'image_f35639.png';
+moneySprite.onload = () => { imagesLoaded = true; };
 
-// 2. Mở khóa âm thanh (Bắt buộc cho điện thoại)
-function unlockAudio() {
+const spriteMap = { 
+    10000: { col: 0, row: 0 }, 20000: { col: 1, row: 0 }, 
+    50000: { col: 0, row: 1 }, 100000: { col: 1, row: 1 }, 
+    200000: { col: 0, row: 2 }, 500000: { col: 1, row: 2 } 
+};
+
+let playerName = "", score = 0, timeLeft = 120, gameActive = false;
+let basket = { x: 175, y: 600, width: 100, height: 80 };
+let moneyItems = [];
+
+// --- HỆ THỐNG ÂM THANH ---
+function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         sounds.bg = new Audio('nhacnen.mp3');
@@ -72,9 +70,10 @@ function unlockAudio() {
         sounds.bg.volume = 0.3;
     }
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    sounds.bg.play().catch(e => console.log("Chờ tương tác..."));
+    sounds.bg.play().catch(() => {});
 }
 
+// --- LOGIC TRÒ CHƠI ---
 function startGame() {
     const nameInput = document.getElementById("playerName").value.trim();
     if (!nameInput) return alert("Vui lòng nhập tên!");
@@ -82,28 +81,38 @@ function startGame() {
     playerName = nameInput;
     document.getElementById("userNameDisplay").innerText = playerName;
     
-    unlockAudio(); // Mở khóa âm thanh khi chạm nút
+    initAudio(); // Quan trọng để chạy trên Mobile
     
     document.getElementById("startScreen").style.display = "none";
     gameActive = true;
+    
+    // Reset trạng thái
+    score = 0; timeLeft = 120; moneyItems = [];
+    
+    // Bắt đầu vòng lặp
     requestAnimationFrame(loop);
 }
 
 function update() {
     if (!gameActive) return;
 
-    // Tạo tiền rơi
+    // Tạo vật phẩm rơi
     if (Math.random() < 0.05) {
-        let values = [10000, 20000, 50000, 100000, 200000, 500000];
-        let v = values[Math.floor(Math.random() * values.length)];
-        moneyItems.push({ x: Math.random() * (LOGIC_W - 80), y: -60, val: v, sp: 4 + (currentLevel * 0.2) });
+        const vals = [10000, 20000, 50000, 100000, 200000, 500000];
+        const v = vals[Math.floor(Math.random() * vals.length)];
+        moneyItems.push({ 
+            x: Math.random() * (LOGIC_W - 80), 
+            y: -60, 
+            val: v, 
+            sp: 4 
+        });
     }
 
     for (let i = moneyItems.length - 1; i >= 0; i--) {
         let m = moneyItems[i];
         m.y += m.sp;
         
-        // Va chạm với giỏ
+        // Kiểm tra va chạm (Dùng tọa độ LOGIC)
         if (m.y + 40 > basket.y && m.x + 80 > basket.x && m.x < basket.x + basket.width) {
             score += m.val;
             if (sounds.ando) {
@@ -122,7 +131,7 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
     
-    // Vẽ giỏ
+    // Vẽ giỏ (Túi lộc)
     ctx.fillStyle = "#e74c3c";
     ctx.fillRect(basket.x, basket.y, basket.width, basket.height);
     ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 3;
@@ -135,10 +144,11 @@ function draw() {
             const sW = moneySprite.width/2, sH = moneySprite.height/3;
             ctx.drawImage(moneySprite, pos.col*sW, pos.row*sH, sW, sH, m.x, m.y, 80, 40);
         } else {
+            // Vẽ fallback nếu ảnh lỗi
             ctx.fillStyle = "#2ecc71";
             ctx.fillRect(m.x, m.y, 70, 35);
-            ctx.fillStyle = "white"; ctx.font = "12px Arial";
-            ctx.fillText(m.val, m.x + 5, m.y + 20);
+            ctx.fillStyle = "white";
+            ctx.fillText(m.val, m.x+10, m.y+20);
         }
     });
 }
@@ -150,27 +160,37 @@ function loop() {
     requestAnimationFrame(loop);
 }
 
-// Xử lý di chuyển
-canvas.addEventListener("touchmove", (e) => {
-    e.preventDefault();
+// --- XỬ LÝ DI CHUYỂN (MOBILE & PC) ---
+function handleMove(clientX) {
+    if (!gameActive) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = LOGIC_W / rect.width;
-    let touchX = (e.touches[0].clientX - rect.left) * scaleX;
+    let touchX = (clientX - rect.left) * scaleX;
     basket.x = Math.max(0, Math.min(LOGIC_W - basket.width, touchX - basket.width/2));
+}
+
+canvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    handleMove(e.touches[0].clientX);
 }, {passive: false});
 
-// Đếm ngược
+canvas.addEventListener("mousemove", (e) => {
+    handleMove(e.clientX);
+});
+
+// --- THỜI GIAN ---
 setInterval(() => {
     if (gameActive) {
         timeLeft--;
         document.getElementById("timerVal").innerText = timeLeft + "s";
         if (timeLeft <= 0) {
             gameActive = false;
-            alert("Hết thời gian! Điểm của bạn: " + score.toLocaleString() + "đ");
+            alert("Hết thời gian! Điểm: " + score.toLocaleString() + "đ");
             location.reload();
         }
     }
 }, 1000);
+
 </script>
 </body>
 </html>
