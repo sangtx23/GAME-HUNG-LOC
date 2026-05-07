@@ -3,9 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Hứng Lộc Pro - Phiên Bản Chuyên Nghiệp</title>
+    <title>Hứng Lộc Pro - Phiên Bản Mobile Optimized</title>
     <style>
-        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
+        /* Tối ưu hóa cho iOS để tránh bị trượt trang khi chơi */
+        body { 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            background: #000; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            touch-action: none; 
+            position: fixed; /* Quan trọng cho iOS */
+            width: 100%;
+        }
         #gameContainer { position: relative; width: 100vw; height: 100vh; max-width: 450px; max-height: 800px; aspect-ratio: 9 / 16; margin: auto; overflow: hidden; background: linear-gradient(to bottom, #0f051e, #1a1033); box-shadow: 0 0 50px rgba(93, 65, 163, 0.5); }
         #gameCanvas { display: block; width: 100%; height: 100%; border: 2px solid #5d41a3; box-sizing: border-box; }
         
@@ -36,7 +49,6 @@
 
         <canvas id="gameCanvas" width="450" height="750"></canvas>
 
-        <!-- Màn hình bắt đầu cho người mới -->
         <div id="startScreen" class="overlay">
             <h1 style="color: #ffd700; text-shadow: 0 0 15px rgba(255, 215, 0, 0.5);">🧧 HỨNG LỘC PRO 🧧</h1>
             <input type="text" id="playerName" placeholder="Nhập tên của bạn..." maxlength="12">
@@ -48,7 +60,6 @@
             <button class="btn-util" onclick="clearData()">Xóa Cache & Tải lại trang</button>
         </div>
 
-        <!-- Màn hình chào mừng người cũ -->
         <div id="welcomeBackScreen" class="overlay" style="display: none;">
             <h2 id="welcomeText" style="color: #ffd700;">CHÀO MỪNG QUAY LẠI!</h2>
             <p id="resumeMsg"></p>
@@ -76,7 +87,7 @@
 
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxh2sFzPGUw2Ka60MGECF67Qm1B-XiWgbshRPbGLnc_yNvJ9SQt8BbZ3cKXEM6qFqA/exec";
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioCtx;
 
 const sounds = {
     bg: new Audio('nhacnen.mp3'),
@@ -85,6 +96,17 @@ const sounds = {
     ando: new Audio('ando.mp3')
 };
 sounds.bg.loop = true; sounds.bg.volume = 0.4;
+
+// Hàm "đánh thức" âm thanh cho iOS
+function unlockAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    // Chạy thử âm thanh ngắn để trình duyệt cho phép phát
+    for (let key in sounds) {
+        let s = sounds[key];
+        s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(e => console.log("Audio unlock wait"));
+    }
+}
 
 const moneySprite = new Image(); moneySprite.src = 'image_f35639.png'; 
 const spriteMap = { 10000: { col: 0, row: 0 }, 20000: { col: 1, row: 0 }, 50000: { col: 0, row: 1 }, 100000: { col: 1, row: 1 }, 200000: { col: 0, row: 2 }, 500000: { col: 1, row: 2 } };
@@ -142,14 +164,14 @@ function updateHUD() {
 }
 
 function resumeGame() {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    unlockAudio();
     document.getElementById("welcomeBackScreen").style.display = "none";
     sounds.bg.play().catch(() => {});
     startGameActual();
 }
 
 function restartNewGame() {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    unlockAudio();
     currentLevel = 1;
     localStorage.setItem('saved_level', 1);
     document.getElementById("welcomeBackScreen").style.display = "none";
@@ -162,9 +184,9 @@ async function saveScoreToSheet() {
 }
 
 function startGame() {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
     const inputName = document.getElementById("playerName").value.trim();
     if (!inputName) return alert("Bạn vui lòng nhập tên nhé!");
+    unlockAudio();
     playerName = inputName;
     localStorage.setItem('player_name', playerName);
     localStorage.setItem('saved_level', 1);
@@ -197,7 +219,7 @@ function createParticles(x, y, color, count, speed = 10) {
 }
 
 function update() {
-    magicDust.forEach(p => { p.y -= p.sp; if(p.y < 0) p.y = LOGIC_H; });
+    magicDust.forEach(p => { p.y -= p.sp; if(p.y < 0) p.y = LOG_H; });
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life -= 0.02;
         if (p.life <= 0) particles.splice(i, 1);
@@ -375,9 +397,26 @@ function draw() {
     });
 }
 
-const updatePos = (clientX) => { if (gameActive) { const rect = canvas.getBoundingClientRect(); basket.x = (clientX - rect.left) * (LOGIC_W / rect.width) - (basket.width * visualScale)/2; } };
+// Cải tiến xử lý tọa độ cho mọi thiết bị (đặc biệt là iPhone)
+const updatePos = (clientX) => { 
+    if (gameActive) { 
+        const rect = canvas.getBoundingClientRect(); 
+        const scaleX = LOGIC_W / rect.width; // Tỷ lệ giữa canvas thật và kích thước hiển thị
+        let targetX = (clientX - rect.left) * scaleX - (basket.width * visualScale) / 2; 
+        
+        // Giới hạn trong màn hình
+        if (targetX < 0) targetX = 0;
+        if (targetX > LOGIC_W - (basket.width * visualScale)) targetX = LOGIC_W - (basket.width * visualScale);
+        
+        basket.x = targetX;
+    } 
+};
+
 canvas.addEventListener("mousemove", (e) => updatePos(e.clientX));
-canvas.addEventListener("touchmove", (e) => { e.preventDefault(); updatePos(e.touches[0].clientX); }, {passive: false});
+canvas.addEventListener("touchmove", (e) => { 
+    e.preventDefault(); 
+    updatePos(e.touches[0].clientX); 
+}, {passive: false});
 
 setInterval(() => { if(gameActive && !isTransforming) { timeLeft--; updateHUD(); if(timeLeft<=0) { gameActive = false; document.getElementById("failScreen").style.display = "flex"; } } }, 1000);
 function loop() { update(); draw(); requestAnimationFrame(loop); }
