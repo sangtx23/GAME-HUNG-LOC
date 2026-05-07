@@ -53,7 +53,7 @@
             <h2 id="welcomeText" style="color: #ffd700;">CHÀO MỪNG QUAY LẠI!</h2>
             <p id="resumeMsg"></p>
             <button class="btn" onclick="resumeGame()">CHƠI TIẾP MÀN CŨ</button>
-            <button class="btn btn-alt" onclick="restartNewGame()">CHƠI LẠI TỪ MÀN 1</button>
+            <button class="btn-util" style="margin-top: 15px;" onclick="backToStart()">KHÔNG, QUAY LẠI MÀN HÌNH CHÍNH</button>
         </div>
 
         <div id="tutorialOverlay" class="overlay" style="display: none;">
@@ -113,6 +113,13 @@ function init() {
         document.getElementById("welcomeText").innerText = `CHÀO MỪNG ${playerName.toUpperCase()}!`;
         document.getElementById("resumeMsg").innerText = `Lần trước bạn đã thoát ở Màn ${currentLevel}.\nBạn muốn tiếp tục chứ?`;
     }
+    function backToStart() {
+    // Ẩn màn hình chào mừng người cũ
+    document.getElementById("welcomeBackScreen").style.display = "none";
+    // Hiện lại màn hình nhập tên ban đầu
+    document.getElementById("startScreen").style.display = "flex";
+   
+      
 }
 
 async function loadLeaderboard() {
