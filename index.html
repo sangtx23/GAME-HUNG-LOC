@@ -155,6 +155,7 @@ const sounds = {
 sounds.bg.loop = true; sounds.bg.volume = 0.4;
 
 const moneySprite = new Image(); moneySprite.src = 'image_f35639.png'; 
+const dragonBg = new Image(); dragonBg.src = 'rong.png';
 const spriteMap = { 10000: { col: 0, row: 0 }, 20000: { col: 1, row: 0 }, 50000: { col: 0, row: 1 }, 100000: { col: 1, row: 1 }, 200000: { col: 0, row: 2 }, 500000: { col: 1, row: 2 } };
 
 const canvas = document.getElementById("gameCanvas");
@@ -378,6 +379,20 @@ function update() {
 
 function draw() {
     ctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
+    if (dragonBg.complete) {
+        ctx.save();
+        // Hiệu ứng Parallax: Rồng di chuyển ngược hướng với giỏ một chút để tạo độ sâu
+        let parallaxX = (basket.x - LOGIC_W/2) * -0.05; 
+        
+        ctx.globalAlpha = 0.25; // Để mờ 25% để không làm lóa mắt người chơi
+        // Vẽ Rồng căn giữa màn hình
+        ctx.drawImage(dragonBg, parallaxX - 50, 0, LOGIC_W + 100, LOGIC_H);
+        
+        // Phủ một lớp màu tối nhẹ để làm nổi bật tiền vàng phía trên
+        ctx.fillStyle = "rgba(15, 5, 30, 0.3)";
+        ctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
+        ctx.restore();
+    }
     magicDust.forEach(p => { ctx.fillStyle = "rgba(255,215,0,0.3)"; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill(); });
     particles.forEach(p => { ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); });
     floatingTexts.forEach(f => { ctx.globalAlpha = f.life; ctx.fillStyle = f.color; ctx.font = "bold 18px Arial"; ctx.textAlign = "center"; ctx.fillText(f.text, f.x, f.y); });
