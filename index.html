@@ -66,7 +66,7 @@ const ctx = canvas.getContext("2d");
 const LOGIC_W = 450, LOGIC_H = 750;
 
 let playerName = localStorage.getItem('player_name') || "";
-let currentLevel = parseInt(localStorage.getItem('saved_level')) || 1;
+let currentLevel = 999
 let score = 0, timeLeft = 120, gameActive = false;
 let basket = { x: 185, y: 550, width: 80, height: 70 };
 let moneyItems = [], particles = [], magicDust = [], floatingTexts = [];
